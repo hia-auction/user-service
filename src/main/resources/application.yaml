@@ -1,3 +1,11 @@
+server:
+  port: 19010
+
 spring:
   application:
     name: user-service
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:19090/eureka/
