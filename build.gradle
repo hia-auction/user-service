@@ -13,9 +13,26 @@ java {
 	}
 }
 
+def githubUsername =
+		System.getenv('GITHUB_ACTOR')
+				?: findProperty('GitHubPackagesUsername')
+
+def githubToken =
+		System.getenv('GITHUB_TOKEN')
+				?: findProperty('GitHubPackagesPassword')
+
 repositories {
-	mavenLocal()
 	mavenCentral()
+
+	maven {
+		name = 'GitHubPackages'
+		url = uri('https://maven.pkg.github.com/hia-auction/hia-common')
+
+		credentials {
+			username = githubUsername
+			password = githubToken
+		}
+	}
 }
 
 ext {
