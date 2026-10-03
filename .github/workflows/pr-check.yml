@@ -23,7 +23,7 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U admin -d hia_user"
+          --health-cmd "pg_isready -U tester -d hia_user"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -45,3 +45,7 @@ jobs:
         env:
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+          DB_URL: jdbc:postgresql://localhost:5432/hia_user
+          DB_USERNAME: tester
+          DB_PASSWORD: test-password
