@@ -11,6 +11,23 @@ permissions:
 jobs:
   build-test:
     runs-on: ubuntu-latest
+
+    #GitHubActions용 임시 DB
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: hia_user
+          POSTGRES_USER: tester
+          POSTGRES_PASSWORD: test-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U admin -d hia_user"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - uses: actions/checkout@v4
 
