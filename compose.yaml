@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: hia-postgres
+
+    ports:
+      - "5432:5432"
+
+    environment:
+      POSTGRES_DB: hia_user
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+
+    volumes:
+      - hia-postgres-data:/var/lib/postgresql/data
+
+    restart: unless-stopped
+
+volumes:
+  hia-postgres-data:
