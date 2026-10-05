@@ -40,16 +40,16 @@ ext {
 }
 
 dependencies {
+	implementation 'com.hia:hia-common:0.0.1-SNAPSHOT'
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+	implementation 'org.flywaydb:flyway-core'
 
 	runtimeOnly 'org.postgresql:postgresql'
-	//todo: 추후 compose 별도의 작업으로 진행 현재는 runtimeOnly로 user전용DB사용
-
-	implementation 'com.hia:hia-common:0.0.1-SNAPSHOT'
+	runtimeOnly 'org.flywaydb:flyway-database-postgresql'
 
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'
