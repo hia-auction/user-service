@@ -17,6 +17,14 @@ spring:
       hibernate:
         format_sql: true
 
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI}
+          audiences:
+            - ${HIA_API_AUDIENCE}
+
 eureka:
   client:
     service-url:
