@@ -49,3 +49,6 @@ jobs:
           DB_URL: jdbc:postgresql://localhost:5432/hia_user
           DB_USERNAME: tester
           DB_PASSWORD: test-password
+
+          KEYCLOAK_ISSUER_URI: http://localhost:8180/realms/hia
+          HIA_API_AUDIENCE: hia-api
