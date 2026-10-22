@@ -47,6 +47,10 @@ public class KeycloakIdentityProvider implements IdentityProvider {
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(request)
                 .retrieve()
+                .onStatus(status -> status.value() == 409,
+                        (httpRequest, httpResponse) ->
+                            {throw new CustomException(UserErrorCode.USER_ALREADY_EXISTS);
+                            })
                 .toBodilessEntity();
 
         if(response.getStatusCode().value() != 201) {

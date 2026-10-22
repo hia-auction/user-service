@@ -12,6 +12,13 @@ public enum UserErrorCode implements ErrorCode {
             "사용자를 찾을 수 없습니다."
     ),
 
+    USER_ALREADY_EXISTS(
+            /*상태코드 409*/
+            HttpStatus.CONFLICT,
+            "USER_ALREADY_EXISTS",
+            "이미 존재하는 계정입니다."
+    ),
+
     KEYCLOAK_TOKEN_INVALID_RESPONSE(
             /*상태코드 502*/
             HttpStatus.BAD_GATEWAY,
