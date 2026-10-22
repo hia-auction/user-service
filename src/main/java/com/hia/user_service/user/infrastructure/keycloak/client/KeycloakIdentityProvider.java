@@ -7,11 +7,14 @@ import com.hia.user_service.user.infrastructure.keycloak.config.KeycloakAdminPro
 import com.hia.user_service.user.infrastructure.keycloak.dto.KeycloakCreateUserRequest;
 import com.hia.user_service.user.infrastructure.keycloak.dto.KeycloakTokenResponse;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 
 import java.net.URI;
 
@@ -40,18 +43,31 @@ public class KeycloakIdentityProvider implements IdentityProvider {
 
         KeycloakCreateUserRequest request = KeycloakCreateUserRequest.of(email, password);
 
-        ResponseEntity<Void> response = restClient.post()
-                .uri("/admin/realms/{realm}/users", properties.getRealm())
-                .headers(headers ->
-                        headers.setBearerAuth(token.accessToken()))
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(request)
-                .retrieve()
-                .onStatus(status -> status.value() == 409,
-                        (httpRequest, httpResponse) ->
-                            {throw new CustomException(UserErrorCode.USER_ALREADY_EXISTS);
+        ResponseEntity<Void> response;
+        try {
+            response = restClient.post()
+                    .uri("/admin/realms/{realm}/users", properties.getRealm())
+                    .headers(headers ->
+                            headers.setBearerAuth(token.accessToken()))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(request)
+                    .retrieve()
+                    .onStatus(status -> status.value() == 409,
+                            (httpRequest, httpResponse) ->
+                            {
+                                throw new CustomException(UserErrorCode.USER_ALREADY_EXISTS);
                             })
-                .toBodilessEntity();
+                    .onStatus(HttpStatusCode::isError,
+                            (httpRequest, httpResponse) ->
+                            {
+                                throw new CustomException(UserErrorCode.KEYCLOAK_USER_CREATION_FAILED);
+                            })
+                    .toBodilessEntity();
+        } catch (ResourceAccessException exception) {
+            throw new CustomException(UserErrorCode.KEYCLOAK_UNAVAILABLE);
+        } catch (RestClientException exception) {
+            throw new CustomException(UserErrorCode.KEYCLOAK_USER_CREATION_FAILED);
+        }
 
         if(response.getStatusCode().value() != 201) {
             throw new CustomException(UserErrorCode.KEYCLOAK_USER_INVALID_RESPONSE);

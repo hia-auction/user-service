@@ -40,6 +40,13 @@ public enum UserErrorCode implements ErrorCode {
             "인증 서버에서 올바른 계정 생성 응답을 받지 못했습니다."
     ),
 
+    KEYCLOAK_USER_CREATION_FAILED(
+            /*상태코드 502*/
+            HttpStatus.BAD_GATEWAY,
+            "KEYCLOAK_USER_CREATION_FAILED",
+            "인증 서버의 계정 생성 요청에 실패했습니다."
+    ),
+
     KEYCLOAK_UNAVAILABLE(
             /*상태코드 503*/
             HttpStatus.SERVICE_UNAVAILABLE,
