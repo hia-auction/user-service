@@ -73,7 +73,13 @@ public class KeycloakIdentityProvider implements IdentityProvider {
             throw new CustomException(UserErrorCode.KEYCLOAK_USER_INVALID_RESPONSE);
         }
 
-        URI location = response.getHeaders().getLocation();
+        URI location;
+
+        try {
+            location = response.getHeaders().getLocation();
+        } catch (IllegalArgumentException exception) {
+            throw new CustomException(UserErrorCode.KEYCLOAK_USER_INVALID_RESPONSE);
+        }
 
         if(location == null) {
             throw new CustomException(UserErrorCode.KEYCLOAK_USER_INVALID_RESPONSE);
@@ -81,10 +87,21 @@ public class KeycloakIdentityProvider implements IdentityProvider {
 
         String path = location.getPath();
 
-        if(!StringUtils.hasText(path) || path.endsWith("/")) {
+        String expectedPrefix = "/admin/realms/" + properties.getRealm() + "/users/";
+
+        if(path == null || !path.startsWith(expectedPrefix)) {
             throw new CustomException(UserErrorCode.KEYCLOAK_USER_INVALID_RESPONSE);
         }
 
-        return path.substring(path.lastIndexOf('/')+1);
+        String authSubject = path.substring(expectedPrefix.length());
+
+        if(!StringUtils.hasText(authSubject)
+                || authSubject.contains("/")
+                || ".".equals(authSubject)
+                || "..".equals(authSubject)) {
+            throw new CustomException(UserErrorCode.KEYCLOAK_USER_INVALID_RESPONSE);
+        }
+
+        return authSubject;
     }
 }
