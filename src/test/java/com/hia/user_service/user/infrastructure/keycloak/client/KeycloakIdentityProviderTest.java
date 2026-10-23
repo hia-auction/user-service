@@ -298,4 +298,60 @@ class KeycloakIdentityProviderTest {
         verify(tokenClient).issueToken();
         server.verify();
     }
+
+    @Test
+    void 기본주소에_경로가_있어도_생성된_식별자를_반환한다() {
+
+        KeycloakAdminProperties properties = new KeycloakAdminProperties();
+        properties.setBaseUrl("http://keycloak.test/auth");
+        properties.setRealm("hia");
+
+        RestClient.Builder builder = RestClient.builder().baseUrl(properties.getBaseUrl());
+
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+
+        //토큰 발급 과정 생략
+        KeycloakTokenClient tokenClient = mock(KeycloakTokenClient.class);
+        when(tokenClient.issueToken()).thenReturn(
+                new KeycloakTokenResponse(
+                        "test-admin-access-token",
+                        300,
+                        "Bearer"
+                )
+        );
+
+        KeycloakIdentityProvider provider = new KeycloakIdentityProvider(builder.build(), tokenClient, properties);
+
+        server.expect(requestTo(properties.getBaseUrl() + "/admin/realms/" + properties.getRealm() + "/users"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer test-admin-access-token"))
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(content().json("""
+                        {
+                          "username": "tester@example.com",
+                          "email": "tester@example.com",
+                          "enabled": true,
+                          "emailVerified": false,
+                          "credentials": [
+                            {
+                              "type": "password",
+                              "value": "test-password",
+                              "temporary": false
+                            }
+                          ]
+                        }
+                        """))
+                .andRespond(withCreatedEntity(URI.create(
+                        "http://keycloak.test/auth/admin/realms/hia/users/test-user-id"
+                )));
+
+        String authSubject = provider.createUser(
+                "tester@example.com",
+                "test-password");
+
+        assertEquals("test-user-id", authSubject);
+
+        verify(tokenClient).issueToken();
+        server.verify();
+    }
 }
