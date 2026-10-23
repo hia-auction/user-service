@@ -6,6 +6,7 @@ import com.hia.user_service.user.application.port.out.IdentityProvider;
 import com.hia.user_service.user.infrastructure.keycloak.config.KeycloakAdminProperties;
 import com.hia.user_service.user.infrastructure.keycloak.dto.KeycloakCreateUserRequest;
 import com.hia.user_service.user.infrastructure.keycloak.dto.KeycloakTokenResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
@@ -18,6 +19,7 @@ import org.springframework.web.client.RestClientException;
 
 import java.net.URI;
 
+@Slf4j
 @Component
 public class KeycloakIdentityProvider implements IdentityProvider {
 
@@ -60,12 +62,18 @@ public class KeycloakIdentityProvider implements IdentityProvider {
                     .onStatus(HttpStatusCode::isError,
                             (httpRequest, httpResponse) ->
                             {
+                                log.warn("Keycloak 계정 생성 실패: status={}",
+                                        httpResponse.getStatusCode().value());
                                 throw new CustomException(UserErrorCode.KEYCLOAK_USER_CREATION_FAILED);
                             })
                     .toBodilessEntity();
         } catch (ResourceAccessException exception) {
+            log.warn("Keycloak 계정 생성 통신 실패: type={}",
+                    exception.getClass().getSimpleName());
             throw new CustomException(UserErrorCode.KEYCLOAK_UNAVAILABLE);
         } catch (RestClientException exception) {
+            log.warn("Keycloak 계정 생성 처리 실패: type={}",
+                    exception.getClass().getSimpleName());
             throw new CustomException(UserErrorCode.KEYCLOAK_USER_CREATION_FAILED);
         }
 

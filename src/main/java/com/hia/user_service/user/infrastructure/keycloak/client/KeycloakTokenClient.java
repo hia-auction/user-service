@@ -4,6 +4,7 @@ import com.hia.common.exception.CustomException;
 import com.hia.user_service.user.application.exception.UserErrorCode;
 import com.hia.user_service.user.infrastructure.keycloak.config.KeycloakAdminProperties;
 import com.hia.user_service.user.infrastructure.keycloak.dto.KeycloakTokenResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
@@ -15,6 +16,7 @@ import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
+@Slf4j
 @Component
 public class KeycloakTokenClient {
 
@@ -48,12 +50,18 @@ public class KeycloakTokenClient {
                     .retrieve()
                     .onStatus(HttpStatusCode::isError,
                             ((request, httpResponse) -> {
+                                log.warn("Keycloak 토큰 발급 실패: status={}",
+                                        httpResponse.getStatusCode().value());
                                 throw new CustomException(UserErrorCode.KEYCLOAK_TOKEN_REQUEST_FAILED);
                             }))
                     .body(KeycloakTokenResponse.class);
         } catch (ResourceAccessException exception) {
+            log.warn("Keycloak 토큰 발급 통신 실패: type={}",
+                    exception.getClass().getSimpleName());
             throw new CustomException(UserErrorCode.KEYCLOAK_UNAVAILABLE);
         } catch (RestClientException exception) {
+            log.warn("Keycloak 토큰 응답 처리 실패: type={}",
+                    exception.getClass().getSimpleName());
             throw new CustomException(UserErrorCode.KEYCLOAK_TOKEN_INVALID_RESPONSE);
         }
 
