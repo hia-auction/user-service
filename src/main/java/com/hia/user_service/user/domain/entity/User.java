@@ -36,22 +36,22 @@ public class User extends BaseTime {
     @Column(name = "status", nullable = false)
     private UserStatus status;
 
-    @Column(name = "name", nullable = false, length = 100)
-    private String name;
+    @Column(name = "nick_name", nullable = false, unique = true, length = 20)
+    private String nickname;
 
 
     //생성 로직
     public static User create(
             String authSubject,
             String email,
-            String name
+            String nickname
     ) {
         User user = new User();
 
         user.id = UUID.randomUUID();
         user.authSubject = authSubject;
         user.email = email;
-        user.name = name;
+        user.nickname = nickname;
         user.role = UserRole.BUYER;
         user.status = UserStatus.ACTIVE;
 
