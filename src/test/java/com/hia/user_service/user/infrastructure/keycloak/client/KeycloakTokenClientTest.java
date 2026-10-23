@@ -5,6 +5,9 @@ import com.hia.user_service.user.application.exception.UserErrorCode;
 import com.hia.user_service.user.infrastructure.keycloak.config.KeycloakAdminProperties;
 import com.hia.user_service.user.infrastructure.keycloak.dto.KeycloakTokenResponse;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
@@ -23,6 +26,7 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
+@ExtendWith(OutputCaptureExtension.class)
 class KeycloakTokenClientTest {
 
     @Test
@@ -81,7 +85,7 @@ class KeycloakTokenClientTest {
     }
 
     @Test
-    void 토큰_발급이_거절되면_요청실패_예외가_발생한다() {
+    void 토큰_발급이_거절되면_요청실패_예외가_발생한다(CapturedOutput output) {
         /*준비: 실제 값 대신 테스트 전용 주소·자격증명 설정*/
         KeycloakAdminProperties properties = new KeycloakAdminProperties();
 
@@ -105,7 +109,7 @@ class KeycloakTokenClientTest {
         server.expect(requestTo(
                         "http://keycloak.test/realms/hia/protocol/openid-connect/token"))
                 .andExpect(method(HttpMethod.POST))
-                .andRespond(withStatus(HttpStatus.UNAUTHORIZED));
+                .andRespond(withStatus(HttpStatus.UNAUTHORIZED).body("private-response-body"));
 
         /*비교
         server.expect(requestTo(
@@ -132,6 +136,9 @@ class KeycloakTokenClientTest {
                 );
 
         server.verify();
+        assertThat(output.getAll()).contains("Keycloak token request failed: status=401")
+                .doesNotContain("private-response-body", "private-exception-message", "test-client", "test-secret",
+                        "Basic dGVzdC1jbGllbnQ6dGVzdC1zZWNyZXQ=", "grant_type");
     }
 
 
@@ -179,7 +186,7 @@ class KeycloakTokenClientTest {
     }
 
     @Test
-    void 응답을_DTO로_변환하지_못하면_예외가_발생한다() {
+    void 응답을_DTO로_변환하지_못하면_예외가_발생한다(CapturedOutput output) {
         /*준비: 실제 값 대신 테스트 전용 주소·자격증명 설정*/
         KeycloakAdminProperties properties = new KeycloakAdminProperties();
 
@@ -205,7 +212,7 @@ class KeycloakTokenClientTest {
                 .andExpect(method(HttpMethod.POST))
                 .andRespond(withSuccess("""
                 {
-                  "access_token": "test-access-token",
+                  "access_token": "private-response-body",
                   "expires_in": "not-a-number",
                   "token_type": "Bearer"
                 }
@@ -220,10 +227,13 @@ class KeycloakTokenClientTest {
                 );
 
         server.verify();
+        assertThat(output.getAll()).contains("Keycloak token request failed: exception=RestClientException")
+                .doesNotContain("private-response-body", "private-exception-message", "test-client", "test-secret",
+                        "Basic dGVzdC1jbGllbnQ6dGVzdC1zZWNyZXQ=", "grant_type");
     }
 
     @Test
-    void 통신_도중_실패로_인한_예외가_발생한다() {
+    void 통신_도중_실패로_인한_예외가_발생한다(CapturedOutput output) {
         /*준비: 실제 값 대신 테스트 전용 주소·자격증명 설정*/
         KeycloakAdminProperties properties = new KeycloakAdminProperties();
 
@@ -260,7 +270,7 @@ class KeycloakTokenClientTest {
 
                 /*가짜 응답 제공: Keycloak 대신 성공 JSON 반환*/
                 .andRespond(request -> {
-                    throw new IOException("테스트용 통신 실패");
+                    throw new IOException("private-exception-message");
                 });
 
         assertThatThrownBy(() -> client.issueToken())
@@ -271,5 +281,8 @@ class KeycloakTokenClientTest {
                 );
 
         server.verify();
+        assertThat(output.getAll()).contains("Keycloak token request failed: exception=ResourceAccessException")
+                .doesNotContain("private-response-body", "private-exception-message", "test-client", "test-secret",
+                        "Basic dGVzdC1jbGllbnQ6dGVzdC1zZWNyZXQ=", "grant_type");
     }
 }

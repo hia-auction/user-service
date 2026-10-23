@@ -6,6 +6,7 @@ import com.hia.user_service.user.application.port.out.IdentityProvider;
 import com.hia.user_service.user.infrastructure.keycloak.config.KeycloakAdminProperties;
 import com.hia.user_service.user.infrastructure.keycloak.dto.KeycloakCreateUserRequest;
 import com.hia.user_service.user.infrastructure.keycloak.dto.KeycloakTokenResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
@@ -18,6 +19,7 @@ import org.springframework.web.client.RestClientException;
 
 import java.net.URI;
 
+@Slf4j
 @Component
 public class KeycloakIdentityProvider implements IdentityProvider {
 
@@ -55,17 +57,21 @@ public class KeycloakIdentityProvider implements IdentityProvider {
                     .onStatus(status -> status.value() == 409,
                             (httpRequest, httpResponse) ->
                             {
+                                log.warn("Keycloak user creation failed: status={}", httpResponse.getStatusCode().value());
                                 throw new CustomException(UserErrorCode.USER_ALREADY_EXISTS);
                             })
                     .onStatus(HttpStatusCode::isError,
                             (httpRequest, httpResponse) ->
                             {
+                                log.warn("Keycloak user creation failed: status={}", httpResponse.getStatusCode().value());
                                 throw new CustomException(UserErrorCode.KEYCLOAK_USER_CREATION_FAILED);
                             })
                     .toBodilessEntity();
         } catch (ResourceAccessException exception) {
+            log.warn("Keycloak user creation failed: exception={}", exception.getClass().getSimpleName());
             throw new CustomException(UserErrorCode.KEYCLOAK_UNAVAILABLE);
         } catch (RestClientException exception) {
+            log.warn("Keycloak user creation failed: exception={}", exception.getClass().getSimpleName());
             throw new CustomException(UserErrorCode.KEYCLOAK_USER_CREATION_FAILED);
         }
 
@@ -78,6 +84,7 @@ public class KeycloakIdentityProvider implements IdentityProvider {
         try {
             location = response.getHeaders().getLocation();
         } catch (IllegalArgumentException exception) {
+            log.warn("Keycloak user creation failed: exception={}", exception.getClass().getSimpleName());
             throw new CustomException(UserErrorCode.KEYCLOAK_USER_INVALID_RESPONSE);
         }
 
@@ -87,7 +94,8 @@ public class KeycloakIdentityProvider implements IdentityProvider {
 
         String path = location.getPath();
 
-        String expectedPrefix = "/admin/realms/" + properties.getRealm() + "/users/";
+        String basePath = URI.create(properties.getBaseUrl()).normalize().getPath().replaceAll("/+$", "");
+        String expectedPrefix = basePath + "/admin/realms/" + properties.getRealm() + "/users/";
 
         if(path == null || !path.startsWith(expectedPrefix)) {
             throw new CustomException(UserErrorCode.KEYCLOAK_USER_INVALID_RESPONSE);

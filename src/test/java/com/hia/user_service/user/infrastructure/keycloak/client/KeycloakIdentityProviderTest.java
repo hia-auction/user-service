@@ -4,19 +4,28 @@ import com.hia.common.exception.CustomException;
 import com.hia.user_service.user.application.exception.UserErrorCode;
 import com.hia.user_service.user.infrastructure.keycloak.config.KeycloakAdminProperties;
 import com.hia.user_service.user.infrastructure.keycloak.dto.KeycloakTokenResponse;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
-import org.springframework.http.HttpHeaders;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.stream.Stream;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.*;
@@ -25,13 +34,22 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 
 
+@ExtendWith(OutputCaptureExtension.class)
 class KeycloakIdentityProviderTest {
 
-    @Test
-    void 계정을_생성하고_인증_식별자를_반환한다() {
+    @ParameterizedTest
+    @CsvSource({
+            "http://keycloak.test, http://keycloak.test/admin/realms/hia/users",
+            "http://keycloak.test/, http://keycloak.test/admin/realms/hia/users",
+            "http://keycloak.test/auth, http://keycloak.test/auth/admin/realms/hia/users",
+            "http://keycloak.test/auth/, http://keycloak.test/auth/admin/realms/hia/users",
+            "http://keycloak.test/gateway/auth, http://keycloak.test/gateway/auth/admin/realms/hia/users",
+            "http://keycloak.test/gateway/auth/, http://keycloak.test/gateway/auth/admin/realms/hia/users"
+    })
+    void 계정을_생성하고_인증_식별자를_반환한다(String baseUrl, String usersUrl) {
 
         KeycloakAdminProperties properties = new KeycloakAdminProperties();
-        properties.setBaseUrl("http://keycloak.test");
+        properties.setBaseUrl(baseUrl);
         properties.setRealm("hia");
 
         RestClient.Builder builder = RestClient.builder().baseUrl(properties.getBaseUrl());
@@ -50,7 +68,7 @@ class KeycloakIdentityProviderTest {
 
         KeycloakIdentityProvider provider = new KeycloakIdentityProvider(builder.build(), tokenClient, properties);
 
-        server.expect(requestTo(properties.getBaseUrl() + "/admin/realms/" + properties.getRealm() + "/users"))
+        server.expect(requestTo(usersUrl))
                 .andExpect(method(HttpMethod.POST))
                 .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer test-admin-access-token"))
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
@@ -69,7 +87,7 @@ class KeycloakIdentityProviderTest {
                           ]
                         }
                         """))
-                .andRespond(withCreatedEntity(URI.create("http://keycloak.test/admin/realms/hia/users/test-user-id")));
+                .andRespond(withCreatedEntity(URI.create(usersUrl + "/test-user-id")));
 
         String authSubject = provider.createUser(
                 "tester@example.com",
@@ -82,7 +100,7 @@ class KeycloakIdentityProviderTest {
     }
 
     @Test
-    void 중복_계정이면_USER_ALREADY_EXISTS_예외가_발생한다() {
+    void 중복_계정이면_USER_ALREADY_EXISTS_예외가_발생한다(CapturedOutput output) {
 
         KeycloakAdminProperties properties = new KeycloakAdminProperties();
         properties.setBaseUrl("http://keycloak.test");
@@ -106,7 +124,7 @@ class KeycloakIdentityProviderTest {
 
         server.expect(requestTo(properties.getBaseUrl() + "/admin/realms/" + properties.getRealm() + "/users"))
                 .andExpect(method(HttpMethod.POST))
-                .andRespond(withStatus(HttpStatus.CONFLICT));
+                .andRespond(withStatus(HttpStatus.CONFLICT).body("private-response-body"));
 
         CustomException exception = assertThrows(
                 CustomException.class,
@@ -120,10 +138,12 @@ class KeycloakIdentityProviderTest {
 
         verify(tokenClient).issueToken();
         server.verify();
+        assertThat(output.getAll()).contains("Keycloak user creation failed: status=409")
+                .doesNotContain("private-response-body", "tester@example.com", "test-password", "test-admin-access-token");
     }
 
     @Test
-    void 인증_서버가_오류를_반환하면_KEYCLOAK_USER_CREATION_FAILED_예외가_발생한다() {
+    void 인증_서버가_오류를_반환하면_KEYCLOAK_USER_CREATION_FAILED_예외가_발생한다(CapturedOutput output) {
 
         KeycloakAdminProperties properties = new KeycloakAdminProperties();
         properties.setBaseUrl("http://keycloak.test");
@@ -147,7 +167,7 @@ class KeycloakIdentityProviderTest {
 
         server.expect(requestTo(properties.getBaseUrl() + "/admin/realms/" + properties.getRealm() + "/users"))
                 .andExpect(method(HttpMethod.POST))
-                .andRespond(withStatus(HttpStatus.INTERNAL_SERVER_ERROR));
+                .andRespond(withStatus(HttpStatus.INTERNAL_SERVER_ERROR).body("private-response-body"));
 
         CustomException exception = assertThrows(
                 CustomException.class,
@@ -161,10 +181,13 @@ class KeycloakIdentityProviderTest {
 
         verify(tokenClient).issueToken();
         server.verify();
+        assertThat(output.getAll()).contains("Keycloak user creation failed: status=500")
+                .doesNotContain("private-response-body", "tester@example.com", "test-password", "test-admin-access-token");
     }
 
-    @Test
-    void 계정_생성_중_통신에_실패하면_KEYCLOAK_UNAVAILABLE_예외가_발생한다() {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void 계정_생성_중_클라이언트_예외를_변환하고_클래스명만_기록한다(boolean networkFailure, CapturedOutput output) {
 
         KeycloakAdminProperties properties = new KeycloakAdminProperties();
         properties.setBaseUrl("http://keycloak.test");
@@ -189,9 +212,11 @@ class KeycloakIdentityProviderTest {
         server.expect(requestTo(properties.getBaseUrl() + "/admin/realms/" + properties.getRealm() + "/users"))
                 .andExpect(method(HttpMethod.POST))
                 .andRespond(request -> {
-                    throw new IOException("테스트용 통신 실패");
+                    if (networkFailure) {
+                        throw new IOException("private-exception-message");
+                    }
+                    throw new RestClientException("private-exception-message");
                 });
-        // RestClient가 ResourceAccessException으로 감쌈 → 해당 catch에서 KEYCLOAK_UNAVAILABLE로 변환
         CustomException exception = assertThrows(
                 CustomException.class,
                 () -> provider.createUser(
@@ -200,7 +225,11 @@ class KeycloakIdentityProviderTest {
                 )
         );
 
-        assertEquals(UserErrorCode.KEYCLOAK_UNAVAILABLE, exception.getErrorCode());
+        assertEquals(networkFailure ? UserErrorCode.KEYCLOAK_UNAVAILABLE : UserErrorCode.KEYCLOAK_USER_CREATION_FAILED,
+                exception.getErrorCode());
+        assertThat(output.getAll()).contains("Keycloak user creation failed: exception="
+                        + (networkFailure ? "ResourceAccessException" : "RestClientException"))
+                .doesNotContain("private-exception-message", "tester@example.com", "test-password", "test-admin-access-token");
 
         verify(tokenClient).issueToken();
         server.verify();
@@ -248,20 +277,25 @@ class KeycloakIdentityProviderTest {
         server.verify();
     }
 
+    static Stream<Arguments> invalidLocations() {
+        return Stream.of("", "/auth").flatMap(basePath -> Stream.of(
+                "http://[",
+                "http://keycloak.test" + basePath + "/admin/realms/other/users/user-123",
+                "http://keycloak.test" + basePath + "/admin/realms/hia/users",
+                "http://keycloak.test" + basePath + "/admin/realms/hia/users/",
+                "http://keycloak.test" + basePath + "/admin/realms/hia/users/.",
+                "http://keycloak.test" + basePath + "/admin/realms/hia/users/..",
+                "http://keycloak.test" + basePath + "/admin/realms/hia/users/user-123/extra",
+                "http://keycloak.test/wrong/admin/realms/hia/users/user-123"
+        ).map(location -> Arguments.of(basePath, location)));
+    }
+
     @ParameterizedTest
-    @ValueSource(strings = {
-            "http://[",
-            "http://keycloak.test/admin/realms/other/users/user-123",
-            "http://keycloak.test/admin/realms/hia/users",
-            "http://keycloak.test/admin/realms/hia/users/",
-            "http://keycloak.test/admin/realms/hia/users/.",
-            "http://keycloak.test/admin/realms/hia/users/..",
-            "http://keycloak.test/admin/realms/hia/users/user-123/extra"
-    })
-    void Location이_잘못되면_응답검증_예외가_발생한다(String location) {
+    @MethodSource("invalidLocations")
+    void Location이_잘못되면_응답검증_예외가_발생한다(String basePath, String location) {
 
         KeycloakAdminProperties properties = new KeycloakAdminProperties();
-        properties.setBaseUrl("http://keycloak.test");
+        properties.setBaseUrl("http://keycloak.test" + basePath);
         properties.setRealm("hia");
 
         RestClient.Builder builder = RestClient.builder().baseUrl(properties.getBaseUrl());
