@@ -87,7 +87,13 @@ public class KeycloakIdentityProvider implements IdentityProvider {
 
         String path = location.getPath();
 
-        String expectedPrefix = "/admin/realms/" + properties.getRealm() + "/users/";
+        String basePath = URI.create(properties.getBaseUrl()).getPath();
+
+        while (basePath.endsWith("/")) {
+            basePath = basePath.substring(0, basePath.length() - 1);
+        }
+
+        String expectedPrefix = basePath + "/admin/realms/" + properties.getRealm() + "/users/";
 
         if(path == null || !path.startsWith(expectedPrefix)) {
             throw new CustomException(UserErrorCode.KEYCLOAK_USER_INVALID_RESPONSE);
