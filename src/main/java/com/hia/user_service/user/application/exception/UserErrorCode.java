@@ -47,6 +47,18 @@ public enum UserErrorCode implements ErrorCode {
             "인증 서버의 계정 생성 요청에 실패했습니다."
     ),
 
+    KEYCLOAK_USER_DELETION_FAILED(
+            HttpStatus.BAD_GATEWAY,
+            "KEYCLOAK_USER_DELETION_FAILED",
+            "인증 서버의 계정 삭제 요청에 실패하였습니다."
+    ),
+
+    KEYCLOAK_USER_DELETION_INVALID_RESPONSE(
+            HttpStatus.BAD_GATEWAY,
+            "KEYCLOAK_USER_DELETION_INVALID_RESPONSE",
+            "인증 서버에서 올바른 계정 삭제 응답을 받지 못했습니다."
+    ),
+
     KEYCLOAK_UNAVAILABLE(
             /*상태코드 503*/
             HttpStatus.SERVICE_UNAVAILABLE,
