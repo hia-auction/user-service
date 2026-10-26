@@ -19,6 +19,27 @@ public enum UserErrorCode implements ErrorCode {
             "이미 존재하는 계정입니다."
     ),
 
+    USER_EMAIL_EXISTS(
+            /*상태코드 409*/
+            HttpStatus.CONFLICT,
+            "USER_EMAIL_EXISTS",
+            "이미 존재하는 이메일입니다."
+    ),
+
+    USER_NICKNAME_EXISTS(
+            /*상태코드 409*/
+            HttpStatus.CONFLICT,
+            "USER_NICKNAME_EXISTS",
+            "이미 존재하는 닉네임입니다."
+    ),
+
+    USER_DATABASE_ERROR(
+            /*상태코드 500*/
+            HttpStatus.INTERNAL_SERVER_ERROR,
+            "USER_DATABASE_ERROR",
+            "회원가입 정보를 저장하지 못했습니다."
+    ),
+
     KEYCLOAK_TOKEN_INVALID_RESPONSE(
             /*상태코드 502*/
             HttpStatus.BAD_GATEWAY,
