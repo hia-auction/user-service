@@ -2,6 +2,7 @@ package com.hia.user_service.common.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -23,7 +24,9 @@ public class SecurityConfig {
                                 .requestMatchers(
                                         "/api/public/**",
                                         "/actuator/health"
-                                ).permitAll().anyRequest().authenticated())
+                                ).permitAll()
+                                .requestMatchers(HttpMethod.POST, "/api/users").permitAll()
+                                .anyRequest().authenticated())
                 .oauth2ResourceServer(
                         oauth2 -> oauth2
                                 .jwt(Customizer.withDefaults()))
