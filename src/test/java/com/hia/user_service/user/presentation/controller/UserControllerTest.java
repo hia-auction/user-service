@@ -62,7 +62,7 @@ class UserControllerTest {
                         .value(savedUser.getId().toString()))
                 .andExpect(jsonPath("$.data.email")
                         .value("db-user@example.com"))
-                .andExpect(jsonPath("$.data.name")
+                .andExpect(jsonPath("$.data.nickname")
                         .value("DB 사용자"))
                 .andExpect(jsonPath("$.data.role").value("BUYER"))
                 .andExpect(jsonPath("$.data.status").value("ACTIVE"));
@@ -113,7 +113,5 @@ class UserControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.id")
                         .value(userA.getId().toString()));
-
-
     }
 }
