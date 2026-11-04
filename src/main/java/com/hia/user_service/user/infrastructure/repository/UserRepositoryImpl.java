@@ -28,4 +28,14 @@ public class UserRepositoryImpl implements UserRepository {
     public Optional<User> findByAuthSubject(String authSubject) {
         return jpaUserRepository.findByAuthSubject(authSubject);
     }
+
+    @Override
+    public boolean existsByEmail(String email) {
+        return jpaUserRepository.existsByEmail(email);
+    }
+
+    @Override
+    public boolean existsByNickname(String nickName) {
+        return jpaUserRepository.existsByNickname(nickName);
+    }
 }

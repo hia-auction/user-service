@@ -16,6 +16,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 
 import java.net.URI;
 
@@ -117,5 +118,38 @@ public class KeycloakIdentityProvider implements IdentityProvider {
         }
 
         return authSubject;
+    }
+
+    @Override
+    public void deleteUser(String authSubject) {
+
+        KeycloakTokenResponse token = tokenClient.issueToken();
+
+        ResponseEntity<Void> response;
+
+        try {
+            response = restClient.delete()
+                    .uri("/admin/realms/{realm}/users/{userId}",
+                            properties.getRealm(), authSubject)
+                    .headers(headers -> headers.setBearerAuth(token.accessToken()))
+                    .retrieve()
+                    .toBodilessEntity();
+        }catch (ResourceAccessException exception) {
+            log.warn("Keycloak 계정 삭제 통신 실패: type={}",
+                    exception.getClass().getSimpleName());
+            throw new CustomException(UserErrorCode.KEYCLOAK_UNAVAILABLE);
+        } catch (RestClientResponseException exception) {
+            log.warn("Keycloak 계정 삭제 실패: status={}",
+                    exception.getStatusCode().value());
+            throw new CustomException(UserErrorCode.KEYCLOAK_USER_DELETION_FAILED);
+        } catch (RestClientException exception) {
+            log.warn("Keycloak 계정 삭제 처리 실패: type={}",
+                    exception.getClass().getSimpleName());
+            throw new CustomException(UserErrorCode.KEYCLOAK_USER_DELETION_FAILED);
+        }
+
+        if(response.getStatusCode().value() != 204) {
+            throw new CustomException(UserErrorCode.KEYCLOAK_USER_DELETION_INVALID_RESPONSE);
+        }
     }
 }
