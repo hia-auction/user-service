@@ -6,6 +6,7 @@ import com.hia.user_service.user.application.exception.UserErrorCode;
 import com.hia.user_service.user.application.port.out.IdentityProvider;
 import com.hia.user_service.user.domain.entity.User;
 import com.hia.user_service.user.domain.repository.UserRepository;
+import org.hibernate.exception.ConstraintViolationException;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
@@ -46,9 +47,30 @@ public class UserRegisterService {
                 log.warn("회원가입 보상 삭제 실패: type={}",
                         compensationException.getClass().getSimpleName());
             }
-            CustomException registrationException = new CustomException(UserErrorCode.USER_DATABASE_ERROR);
+            CustomException registrationException = new CustomException(resolveDatabaseError(exception));
             registrationException.initCause(exception);
             throw registrationException;
         }
+    }
+
+    private UserErrorCode resolveDatabaseError(DataIntegrityViolationException exception) {
+
+        Throwable current = exception;
+
+        while(current != null) {
+            if(current instanceof ConstraintViolationException violation) {
+                String constrainName = violation.getConstraintName();
+                if("23505".equals(violation.getSQLState())) {
+                    if("users_email_key".equals(constrainName)) {
+                        return UserErrorCode.USER_EMAIL_EXISTS;
+                    }
+                    if("uk_users_nick_name".equals(constrainName)) {
+                        return UserErrorCode.USER_NICKNAME_EXISTS;
+                    }
+                }
+            }
+            current = current.getCause();
+        }
+        return UserErrorCode.USER_DATABASE_ERROR;
     }
 }

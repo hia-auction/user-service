@@ -83,7 +83,7 @@ public class UserRegisterServiceIntegrationTest {
                     () -> service.register(command));
 
             //그럼 같은 이메일 때문에 에러 발생
-            assertEquals(UserErrorCode.USER_DATABASE_ERROR, exception.getErrorCode());
+            assertEquals(UserErrorCode.USER_EMAIL_EXISTS, exception.getErrorCode());
             assertInstanceOf(DataIntegrityViolationException.class, exception.getCause());
 
             verify(provider).deleteUser(createdSubject);
